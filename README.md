@@ -2,6 +2,7 @@
 
 This script is intended to provide an API endpoint to relevant OSM user statistics contained in the HOTOSM tasking manager database. Specifically, edit timestamps in the categories of done, validated, and invalidated, arranged by project and by user. For example:
 
+```
 "2156(userid)": {
   "167(projectid)": {
     "done": {
@@ -29,6 +30,7 @@ This script is intended to provide an API endpoint to relevant OSM user statisti
     }
   }
 }
+```
 
 In the current implementation, while the script is running and a database is being served, this information is provided at http://localhost:5000/.
 
