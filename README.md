@@ -1,6 +1,10 @@
 # tasking-manager-stats
 
-This script is intended to provide an API endpoint to relevant OSM user statistics contained in the HOTOSM tasking manager database. Specifically, edit timestamps in the categories of done, validated, and invalidated, arranged by project and by user. For example:
+A small script to generate OSM user statistics from the HOTOSM Tasking Manager
+
+### Overview 
+
+This script is generates timestamp data for users who have used the HOTOSM tasking manager database. Specifically, edit timestamps in the categories of done, validated, and invalidated, arranged by project and by user. For example:
 
 ```
 "2156(userid)": {
@@ -32,8 +36,15 @@ This script is intended to provide an API endpoint to relevant OSM user statisti
 }
 ```
 
-In the current implementation, while the script is running and a database is being served, this information is provided at http://localhost:5000/.
+The script generates JSON and posts to an Amazon S3 bucket to be served as static JSON endpoint. 
 
 ## Dependencies
-- pip install psycopg2 (SQL connection for Python) and flask (lightweight endpoint server) if necessary.
+- pip install psycopg2 (SQL connection for Python)
 - This script depends on a running version of the HOTOSM Tasking Manager pgsql database schema, a clean copy of which can be downloaded along with the HOTOSM Tasking Server itself from https://github.com/hotosm/osm-tasking-manager2.
+
+## Usage
+
+```
+$ pip install -r requirements.txt
+$ python taskingDbEndpoint.py
+```
