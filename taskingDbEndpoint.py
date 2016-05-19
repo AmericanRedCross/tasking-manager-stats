@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
-# This script creates statistics for OSM users of the OSM Tasking Manager database. 
-# Edit timestamps for each category of action arranged by project and user. 
+# This script creates statistics for OSM users of the
+# OSM Tasking Manager database.
+# Edit timestamps for each category of action arranged by project and user.
 # Output is in JSON format and is uploaded directly to an Amazon S3 bucket.
 #
 # Environment variables:
@@ -18,9 +19,8 @@ import psycopg2
 import psycopg2.extras
 import tinys3
 import simplejson as json
-from datetime import datetime
-import time
 import os
+
 
 def connectDB():
     # login info
@@ -34,6 +34,7 @@ def connectDB():
     # initialize a cursor
     return conn.cursor(cursor_factory=psycopg2.extras.NamedTupleCursor)
 
+
 # returns dictionary of users, their projects, the categories of edits
 # made by them, and the times they made those edits
 def getTaskstate():
@@ -45,40 +46,64 @@ def getTaskstate():
                   WHERE user_id IS NOT NULL \
                   AND state IN (1, 2, 3) ')
     records = cur.fetchall()
+
+    # translation dict for task completion categories
+    stateLookup = {2: 'done', 3: 'validated', 1: 'invalidated'}
+
+    # helper to append new project and append first timestamp to
+    # project in proper category
+    def appendFirstProject(r, users, user_id, proj_id, stateLookup):
+        users[user_id][proj_id] = {'done': {'times': []},
+                                   'validated': {'times': []},
+                                   'invalidated': {'times': []}}
+        users[user_id][proj_id][stateLookup[r.state]]['times'] \
+            .append(str(r.date).split('.')[0])
+
     # build user dictionary with unique keys and subkeys for user_id and
     # project_id, and placeholders for edit type and times
-    stateLookup = {2: 'done', 3: 'validated', 1: 'invalidated'}
     users = {}
-    # loop through all records from database query to generate per user data
     for r in records:
         user_id = str(r.user_id)
         proj_id = str(r.project_id)
-        # create empty dict for each user
-        users[user_id] = {}
-        # check if user exists in the users dict
+        # if user exists...
         if user_id in users:
+            # if user exists and project exists...
             if proj_id in users[user_id]:
-                users[user_id][proj_id][stateLookup[r.state]]['times']\
-                    .append(str(r.date).split(".")[0])
+                # ...append next timestamp to project in proper category.
+                users[user_id][proj_id][stateLookup[r.state]]['times'] \
+                    .append(str(r.date).split('.')[0])
+            # if user exists but project doesn't exist...
             else:
-                users[user_id][proj_id] = {'done': {'times': []},
-                                           'validated': {'times': []},
-                                           'invalidated': {'times': []}}
+                # ...append new project and append first timestamp to project
+                # in proper category.
+                appendFirstProject(r, users, user_id, proj_id, stateLookup)
+        # if no user exists...
+        else:
+            # ...append new user and append new project and append first
+            # timestamp to project in proper category.
+            users[user_id] = {}
+            appendFirstProject(r, users, user_id, proj_id, stateLookup)
 
     return users
+
 
 def upload(file):
     # uses tinys3 to create connection, open file, and upload
     # get access keys and buckets from environment variables
-    conn = tinys3.Connection(os.getenv('S3_ACCESS_KEY'), os.getenv('S3_SECRET_KEY'), tls=True)
+    conn = tinys3.Connection(os.getenv('S3_ACCESS_KEY'),
+                             os.getenv('S3_SECRET_KEY'),
+                             tls=True)
     f = open('%s.json' % file, 'rb')
-    conn.upload('%s.json' % file, f, bucket=os.getenv('BUCKET'), content_type='application/json')
+    conn.upload('%s.json' % file,
+                f, bucket=os.getenv('BUCKET'),
+                content_type='application/json')
+
 
 def main():
     users = getTaskstate()
 
     # dump users dict into minified json
-    fout = json.dumps(users, separators=(',',':'))
+    fout = json.dumps(users, separators=(',', ':'))
     # generate file of users json
     f = open('users.json', 'wb')
     f.write(fout)
