@@ -5,28 +5,21 @@
 # Edit timestamps for each category of action arranged by project and user.
 # Output is in JSON format and is uploaded directly to an Amazon S3 bucket.
 #
-# Environment variables:
-#
-#   S3_ACCESS_KEY=your_access_key
-#   S3_SECRET_KEY=your_secret_key
-#   BUCKET=your_bucket
-#
 # Usage
 #
 # python taskingDBendpoint.py
 
 import psycopg2
 import psycopg2.extras
-import tinys3
 import simplejson as json
-import os
+from os import path, mkdir
 
 
 def connectDB():
     # login info
     host = 'localhost'
-    database = 'tasking'
-    user = 'nsmith'
+    database = 'osmtm'
+    user = 'postgres'
     # define connection string
     conn_string = "host='%s' dbname='%s' user='%s'" % (host, database, user)
     # get a connection
@@ -87,29 +80,24 @@ def getTaskstate():
     return users
 
 
-def upload(file):
-    # uses tinys3 to create connection, open file, and upload
-    # get access keys and buckets from environment variables
-    conn = tinys3.Connection(os.getenv('S3_ACCESS_KEY'),
-                             os.getenv('S3_SECRET_KEY'),
-                             tls=True)
-    f = open('%s.json' % file, 'rb')
-    conn.upload('%s.json' % file,
-                f, bucket=os.getenv('BUCKET'),
-                content_type='application/json')
+def write(users):
+    outdir = 'user_data'
+    if not path.exists(outdir):
+        mkdir(outdir)
+
+    # for each individual user...
+    for user_id, user_data in users.iteritems():
+        # ...dump user's dict into minified json...
+        fout = fout = json.dumps(user_data, separators=(',', ':'))
+        # ...generate file of user's json.
+        f = open(path.join(outdir, user_id + '.json'), 'wb')
+        f.write(fout)
+        f.close()
 
 
 def main():
     users = getTaskstate()
-
-    # dump users dict into minified json
-    fout = json.dumps(users, separators=(',', ':'))
-    # generate file of users json
-    f = open('users.json', 'wb')
-    f.write(fout)
-    f.close()
-    # trigger upload to s3
-    upload('users')
+    write(users)
 
 if __name__ == '__main__':
     main()
